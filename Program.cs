@@ -1,2 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using NLog;
+string path = Directory.GetCurrentDirectory() + "/nlog.config";
+// create instance of Logger
+var logger = LogManager.Setup().LoadConfigurationFromFile(path).GetCurrentClassLogger();
