@@ -1,8 +1,4 @@
-﻿using System.ComponentModel;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.CompilerServices;
-using NLog;
-using NLog.Fluent;
+﻿using NLog;
 
 // Constents
 bool IS_UNIX = true;
@@ -10,6 +6,7 @@ const string DELIMETER_1 = ",";
 const string DELIMETER_2 = "|";
 const string START_END_TITLE_WITH_DELIMETER1_INDICATOR = "\"";
 
+const uint PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000 line before removal
 
 
 string[] MAIN_MENU_OPTIONS_IN_ORDER = { enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies),
@@ -35,7 +32,9 @@ string optionsSelector(string[] options)
         Console.WriteLine("Please select an option from the following...");
         for (int i = 1; i <= options.Length; i++)
         {
-            Console.WriteLine("  " + i + ") " + options[i - 1]);
+            // Console.WriteLine($"  {i,options.Length.ToString().Length}) {options[i - 1]}");
+            Console.WriteLine(string.Format($" {{0,{options.Length.ToString().Length}}}) {{1}}", i, options[i - 1]));//Have to use this as it prevents the constents requirment.
+
         }
         Console.Write("Please enter a option from the list: ");
         userInput = Console.ReadLine();
@@ -58,6 +57,13 @@ string optionsSelector(string[] options)
 }
 
 
+List<Movie> movies = buildMoviesListFromFile(moviesPath);
+if (movies == null)
+{
+    logger.Fatal("There was a problem accessing the provided file. Closing program..."); //Does not give path again.
+    return;
+}
+
 while (true)
 {
 
@@ -71,7 +77,19 @@ while (true)
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies))
     {
-        displayMoviesFromFile(moviesPath);
+        string[] options = new string[movies.Count / PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT + (movies.Count % PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT > 0 ? 1 : 0) + 1];// +1 is for exit
+        // TODO: AUTO FOR LESS THAN PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT
+        options[0] = "Exit without printing.";
+        for (int i = 0; i < options.Length - 2; i++)//-2 to exclude last range
+        {
+            options[i+1] = $"List movies range {i * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT}-{(i + 1) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1}";
+        }
+        options[options.Length - 1] = $"List movies range {(options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT}-{movies.Count}";
+        optionsSelector(options);
+        // displayMoviesFromList(movies, 100);
+        // for(int i=10000; i>0; i--){
+        //     Console.WriteLine(i);
+        // }
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies))
     {
@@ -84,13 +102,20 @@ while (true)
 
 }
 
-void displayMoviesFromFile(string dataPath)
+List<Movie> buildMoviesListFromFile(string dataPath)
 {
+    List<Movie> moviesInFile = new List<Movie>();
+    // Info
+    uint lineNumber = 1;//Should never be negative, so uint
+    // Metrics
+    ushort longestTitle = 0;
+
     // ALL TERMINATORS
     if (!System.IO.File.Exists(dataPath))
     {
         logger.Fatal($"The file, '{dataPath}' was not found.");
-        return;
+        // throw new FileNotFoundException();
+        return null;
     }
     // Take care of the rest of at this point all unknown filesystem errors (not accessable, ect.)
     StreamReader sr;
@@ -101,13 +126,9 @@ void displayMoviesFromFile(string dataPath)
     catch (Exception ex)
     {
         logger.Fatal(ex.Message);
-        return;
+        // throw new Exception($"Problem using file at \"{dataPath}\"");
+        return null;
     }
-    List<Movie> movies = new List<Movie>();
-    // Info
-    uint lineNumber = 1;//Should never be negative
-    // Metrics
-    ushort longestTitle = 0;
 
     while (!sr.EndOfStream)
     {
@@ -152,34 +173,39 @@ void displayMoviesFromFile(string dataPath)
         if (!recordIsBroken)
         {
             Movie movie = new Movie(movieId, movieTitle, genres, DELIMETER_2);
-            movies.Add(movie);
+            moviesInFile.Add(movie);
             // Console.WriteLine(movie);
             // Update metrics
-            longestTitle = Math.Max(longestTitle, (ushort) movie.title.Length);
+            longestTitle = Math.Max(longestTitle, (ushort)movie.title.Length);
         }
 
         // Update helpers
         lineNumber++;
-        if(lineNumber > 99){
-            break;
-        }
+        // if(lineNumber > 99){
+        //     break;
+        // }
     }
     sr.Close();
+    return moviesInFile;
+}
+
+void displayMoviesFromList(List<Movie> movieList, int longestTitle)
+{
     // After list is created, display results to user.
-    string headerDividerLine     = "+";
+    string headerDividerLine = "+";
     string headerTitlesLine = "Movie Title";
 
-    headerTitlesLine = string.Format($"{{0,{(longestTitle+headerTitlesLine.Length)/2}}}", headerTitlesLine);
-    headerTitlesLine = "|"+headerTitlesLine;
-    for(int i=headerTitlesLine.Length; i<=longestTitle; i++){ headerTitlesLine += " "; }
+    headerTitlesLine = string.Format($"{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);
+    headerTitlesLine = "|" + headerTitlesLine;
+    for (int i = headerTitlesLine.Length; i <= longestTitle; i++) { headerTitlesLine += " "; }
     headerTitlesLine += "|";
     headerTitlesLine += "Year";
-    for(int i=headerTitlesLine.Length; i<=Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++){ headerTitlesLine += " "; }
+    for (int i = headerTitlesLine.Length; i <= Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerTitlesLine += " "; }
     headerTitlesLine += "|";
 
-    for(int i=0; i<longestTitle; i++){ headerDividerLine += "-"; }
+    for (int i = 0; i < longestTitle; i++) { headerDividerLine += "-"; }
     headerDividerLine += "+";
-    for(int i=0; i<Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++){ headerDividerLine += "-"; }
+    for (int i = 0; i < Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerDividerLine += "-"; }
     headerDividerLine += "+";
 
     // Display header
@@ -187,70 +213,12 @@ void displayMoviesFromFile(string dataPath)
     Console.WriteLine(headerTitlesLine);
     Console.WriteLine(headerDividerLine);
 
-
-    foreach (Movie movie in movies)
+    foreach (Movie movie in movieList)
     {
-        Console.WriteLine(string.Format($"{{0,-{longestTitle}}}", movie.title)+":"+movie.year);
+        Console.WriteLine(string.Format($"{{0,-{longestTitle}}}", movie.title) + ":" + movie.year);
     }
 
-
-    // string weekHeader = $" {DayOfWeek.Sunday.ToString().Substring(0,numPlacesInColumnAfterDividerDays),numPlacesInColumnAfterDividerDays}";
-    // string calcHeader = $" {"Total".Substring(0,numPlacesInColumnAfterDividerCaculated),numPlacesInColumnAfterDividerCaculated} {"Avg".Substring(0,numPlacesInColumnAfterDividerCaculated),numPlacesInColumnAfterDividerCaculated}";
-    // string underLineHeader = "";
-    // for (int i = 0; i < 7; i++)
-    // {
-    //     underLineHeader += " ";
-    //     for (int j = 0; j < numPlacesInColumnAfterDividerDays; j++)
-    //     {
-    //         underLineHeader += underLinePattern;
-    //     }
-    // }
-
-    //     for (int i = 0; i < 2; i++)
-    //     {
-    //         underLineHeader += " ";
-    //         for (int j = 0; j < numPlacesInColumnAfterDividerCaculated; j++)
-    //         {
-    //             underLineHeader += underLinePattern;
-    //         }
-    //     }
-    //     string fullHeader = $"{weekHeader}{calcHeader}\n{underLineHeader}";
-
-    //     while (!sr.EndOfStream)
-    //     {
-    //         string line = sr.ReadLine();
-    //         Console.WriteLine($"Week of {date:MMM}, {date:dd}, {date:yyyy}");
-
-
-    //         Console.WriteLine(fullHeader);
-
-    //         //Days
-    //         foreach (string nightHour in nightHours)
-    //         {
-    //             Console.Write($" {nightHour,numPlacesInColumnAfterDividerDays}");
-    //         }
-    //         //Caculated
-    //         // float[] nightHoursNums = new float[nightHours.Length];
-    //         float totalWeekNightHours = 0f;
-    //         for (int i = 0; i < nightHours.Length; i++)
-    //         {
-    //             totalWeekNightHours += float.Parse(nightHours[i]);
-    //         }
-
-    //         string average = $"{(totalWeekNightHours / nightHours.Length).ToString():F10}";//TODO:Make to numPlacesInColumnAfterDividerCaculated
-    //         Console.Write($" {totalWeekNightHours.ToString(),numPlacesInColumnAfterDividerCaculated}");
-
-    //         if(average.Length > numPlacesInColumnAfterDividerCaculated){
-    //             average = average.Substring(0,numPlacesInColumnAfterDividerCaculated);
-    //         }
-
-    //         Console.Write($" {average,numPlacesInColumnAfterDividerCaculated}");
-    //         Console.WriteLine("\n");
-    //     }
-    //     sr.Close();
 }
-
-
 
 
 
