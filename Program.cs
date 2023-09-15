@@ -106,7 +106,8 @@ while (true)
         }else{
             for(int i=0; i<options.Length-1; i++){//Start at 0 as quit option already taken care of but optionsRanges is one fewer
                 if(optionStringSelected == options[i+1]){
-                    displayMoviesFromList(movies, optionsRanges[i,0], optionsRanges[i,1], getLongestTitle(movies, optionsRanges[i,0], optionsRanges[i,1]-1)); //Remove one from end as records start on 1, not 0
+                    int[] rangeStats = getStats(movies, optionsRanges[i,0], optionsRanges[i,1]-1); //Remove one from end as records start on 1, not 0
+                    displayMoviesFromList(movies, optionsRanges[i,0], optionsRanges[i,1], (ushort)rangeStats[0], (ushort)rangeStats[2], (ushort)rangeStats[3]);
                 }
             }
         }
@@ -218,22 +219,34 @@ List<Movie> buildMoviesListFromFile(string dataPath)
     return moviesInFile;
 }
 
-void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int recordEndNum, int longestTitle)
+void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int recordEndNum, ushort longestTitle, ushort longestGenresRawLength, ushort longestGenresLengthCount)
 {
     // After list is created, display results to user.
     char headerDividerNode = '+';
-    char headerDividerLink = '|';
+    char headerDividerLinkVert = '|';
+    char headerDividerLinkHorz = '-';
                                             
     string headerDividerLine = $"{headerDividerNode}";
     string headerTitlesLine = "Movie Title";
 
-    //Have to use string.Format() as it prevents the constents requirment.
-    headerTitlesLine = string.Format($"{headerDividerLink}{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);
-    headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLink}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLink}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account
+    string headerGenreSegment = "Genres";
 
-    for (int i = 0; i < longestTitle; i++) { headerDividerLine += "-"; }// = is so that the first link spacer is taken into account
+    //Have to use string.Format() as it prevents the constents requirment.
+    headerTitlesLine = string.Format($"{headerDividerLinkVert}{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);
+    headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLinkVert}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLinkVert}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account
+    
+    headerGenreSegment = string.Format($"{{0,-{(longestGenresRawLength+(longestGenresLengthCount-1)*2+headerGenreSegment.Length)/2}}}",headerGenreSegment);
+    headerGenreSegment = string.Format($"{{0,{longestGenresRawLength+(longestGenresLengthCount-1)*2+1}}}",headerGenreSegment);
+    headerTitlesLine = $"{headerTitlesLine}{headerGenreSegment}{headerDividerLinkVert}";
+
+    for (int i = 0; i < longestTitle; i++) { headerDividerLine += headerDividerLinkHorz; }// = is so that the first link spacer is taken into account
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
-    for (int i = 0; i < Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerDividerLine += "-"; }
+    for (int i = 0; i < Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerDividerLine += headerDividerLinkHorz; }
+
+    headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
+
+    Console.WriteLine("longestGenresRawLength = "+longestGenresRawLength);
+    for (int i = 0; i < longestGenresRawLength+(longestGenresLengthCount-1)*2+1; i++) { headerDividerLine += headerDividerLinkHorz; } //Take into account, space for ", ", +1 is because of the added " " beforehand
 
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
 
@@ -242,25 +255,51 @@ void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int record
     Console.WriteLine(headerDividerLine);
     Console.WriteLine(headerTitlesLine);
     Console.WriteLine(headerDividerLine);
+
+    // movieList.Sort();
     for(int i = recordStartNum; i < recordEndNum; i++ )
     {
         Movie movie = movieList[i];//Does not like uint, TODO: Make list take larger list or tranfer to diffrent data structure.
-        Console.WriteLine(string.Format($"{headerDividerLink}{{0,-{longestTitle}}}|{{1,{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}|", movie.title, (movie.year == -1? ""/*"NTAV"*/ : movie.year)));//Have to use this as it prevents the constents requirment.
+        Console.Write(string.Format($"{headerDividerLinkVert}{{0,-{longestTitle}}}|{{1,{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}|", movie.title, (movie.year == -1? ""/*"NTAV"*/ : movie.year)));//Have to use this as it prevents the constents requirment.
+        string genreDisplay = " ";
+        if(movie.genres.Length == 1 && movie.genres[0] == "(no genres listed)"){
+            // If no no genres are listed
+        }else{
+            foreach(string genre in movie.genres){
+                genreDisplay = $"{genreDisplay}{genre}, ";
+            }
+            if(genreDisplay.Length > 1){
+                genreDisplay = genreDisplay.Substring(0,genreDisplay.Length-2);
+            }
+        }
+        Console.WriteLine(string.Format($"{{0,-{longestGenresRawLength+(longestGenresLengthCount-1)*2+1}}}|", genreDisplay));
     }
     Console.WriteLine(headerDividerLine);
     Console.WriteLine(); //Give space after report
-
 }
 
-ushort getLongestTitle(List<Movie> movieList, int listStartIndex=0, int listEndIndex=-1){
-    int currentLongestTitle = 0;
+int[] getStats(List<Movie> movieList, int listStartIndex=0, int listEndIndex=-1){
+    int[] longestStats = new int[4];
+    longestStats[0] = 0; //Longest Title
+    longestStats[1] = 0; //Largest # of genres
+    longestStats[2] = 0; //Longest total genre length raw (no connectors)
+    longestStats[3] = 0; //Genres # of longest total genre length raw 
+
+
     listStartIndex = Math.Clamp(listStartIndex, 0, movieList.Count-1);
     if(listEndIndex == -1 || listEndIndex >= movieList.Count){ listEndIndex = movieList.Count-1; }
     for(int i = listStartIndex; i <= listEndIndex; i++)
     {
-        currentLongestTitle = Math.Max(currentLongestTitle, movieList[i].title.Length);
+        longestStats[0] = Math.Max(longestStats[0], movieList[i].title.Length);
+        longestStats[1] = Math.Max(longestStats[1], movieList[i].genres.Length);
+        int totalMovieGenreLength = 0;
+        foreach(string genre in movieList[i].genres){ totalMovieGenreLength += genre.Length; }
+        if(totalMovieGenreLength > longestStats[2]){
+            longestStats[2] = totalMovieGenreLength;
+            longestStats[3] = movieList[i].genres.Length;
+        }
     }
-    return (ushort) currentLongestTitle;// Most effient to cast here instead of inside caculations
+    return longestStats;
 }
 
 
