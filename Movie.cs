@@ -9,7 +9,7 @@ public class Movie : IEquatable<Movie>
 
     public string title { get; }
 
-    public int year{ get; }//Allowed to be negative in case of using other year system other then gregorian
+    public int year{ get; }//Allowed to be negative for indicating not set, in case of using other year system other then gregorian this implementation requires it still to be positive
 
     public string[] genres{ get; }
 
@@ -32,7 +32,7 @@ public class Movie : IEquatable<Movie>
             }
         }else{//Particular title does contain year, skip removal from title
             this.title = title;
-            // this.year = 0;
+            this.year = -1;
         }
         this.genres = genres;
     }

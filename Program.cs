@@ -77,19 +77,35 @@ while (true)
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies))
     {
-        string[] options = new string[movies.Count / PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT + (movies.Count % PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT > 0 ? 1 : 0) + 1];// +1 is for exit
+        string[] options = new string[movies.Count / PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT + (movies.Count % PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT-1 > 0 ? 1 : 0) + 1];// +1 is for exit
+        int[,] optionsRanges = new int[options.Length-1,2];//-2 for no range at options[0], 2 is for range start and range end.  //TODO: Combine arrays so that they aren't needed to be in sync? It's verry temporary and there would be more processing to create and then need to pull out and cast or create new class, ect.
         // TODO: AUTO FOR LESS THAN PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT
-        options[0] = "Exit without printing.";
+        options[0] = "Exit without printing report.";
+        int recordsRangeStart;
+        int recordsRangeEnd;
         for (int i = 0; i < options.Length - 2; i++)//-2 to exclude last range
         {
-            options[i+1] = $"List movies range {i * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT}-{(i + 1) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1}";
+            recordsRangeStart = (int) (i * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
+            recordsRangeEnd   = (int) ((i + 1) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1);
+            optionsRanges[i,0] = recordsRangeStart;
+            optionsRanges[i,1] = recordsRangeEnd;
+            options[i+1] = $"List movies range {recordsRangeStart}-{recordsRangeEnd}";
         }
-        options[options.Length - 1] = $"List movies range {(options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT}-{movies.Count}";
-        optionsSelector(options);
-        // displayMoviesFromList(movies, 100);
-        // for(int i=10000; i>0; i--){
-        //     Console.WriteLine(i);
-        // }
+        recordsRangeStart = (int) ((options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
+        options[options.Length - 1] = $"List movies range {recordsRangeStart}-{movies.Count}";
+        optionsRanges[options.Length-2,0] = (int) ((options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
+        optionsRanges[options.Length-2,1] = movies.Count;
+
+        string optionStringSelected = optionsSelector(options);
+        if(optionStringSelected == options[0]){//Always quit option
+            
+        }else{
+            for(int i=0; i<options.Length-1; i++){//Start at 0 as quit option already taken care of but optionsRanges is one fewer
+                if(optionStringSelected == options[i+1]){
+                    displayMoviesFromList(movies, optionsRanges[i,0], optionsRanges[i,1], getLongestTitle(movies, optionsRanges[i,0], optionsRanges[i,1]-1)); //Remove one from end as records start on 1, not 0
+                }
+            }
+        }
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies))
     {
@@ -189,37 +205,49 @@ List<Movie> buildMoviesListFromFile(string dataPath)
     return moviesInFile;
 }
 
-void displayMoviesFromList(List<Movie> movieList, int longestTitle)
+void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int recordEndNum, int longestTitle)
 {
     // After list is created, display results to user.
-    string headerDividerLine = "+";
+    char headerDividerNode = '+';
+    char headerDividerLink = '|';
+                                            
+    string headerDividerLine = $"{headerDividerNode}";
     string headerTitlesLine = "Movie Title";
 
-    headerTitlesLine = string.Format($"{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);
-    headerTitlesLine = "|" + headerTitlesLine;
-    for (int i = headerTitlesLine.Length; i <= longestTitle; i++) { headerTitlesLine += " "; }
-    headerTitlesLine += "|";
-    headerTitlesLine += "Year";
-    for (int i = headerTitlesLine.Length; i <= Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerTitlesLine += " "; }
-    headerTitlesLine += "|";
+    headerTitlesLine = string.Format($"{headerDividerLink}{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);//Have to use this as it prevents the constents requirment.
+    headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLink}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLink}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account //Have to use this as it prevents the constents requirment.
 
-    for (int i = 0; i < longestTitle; i++) { headerDividerLine += "-"; }
-    headerDividerLine += "+";
+    for (int i = 0; i < longestTitle; i++) { headerDividerLine += "-"; }// = is so that the first link spacer is taken into account
+    headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
     for (int i = 0; i < Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerDividerLine += "-"; }
-    headerDividerLine += "+";
 
+    headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
+
+    Console.WriteLine(); //Give space before report
     // Display header
     Console.WriteLine(headerDividerLine);
     Console.WriteLine(headerTitlesLine);
     Console.WriteLine(headerDividerLine);
-
-    foreach (Movie movie in movieList)
+    for(int i = recordStartNum; i < recordEndNum; i++ )
     {
-        Console.WriteLine(string.Format($"{{0,-{longestTitle}}}", movie.title) + ":" + movie.year);
+        Movie movie = movieList[i];//Does not like uint, TODO: Make list take larger list or tranfer to diffrent data structure.
+        Console.WriteLine(string.Format($"{headerDividerLink}{{0,-{longestTitle}}}|{{1,{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}|", movie.title, (movie.year == -1? ""/*"NTAV"*/ : movie.year)));//Have to use this as it prevents the constents requirment.
     }
+    Console.WriteLine(headerDividerLine);
+    Console.WriteLine(); //Give space after report
 
 }
 
+ushort getLongestTitle(List<Movie> movieList, int listStartIndex=0, int listEndIndex=-1){
+    int currentLongestTitle = 0;
+    listStartIndex = Math.Clamp(listStartIndex, 0, movieList.Count-1);
+    if(listEndIndex == -1 || listEndIndex >= movieList.Count){ listEndIndex = movieList.Count-1; }
+    for(int i = listStartIndex; i <= listEndIndex; i++)
+    {
+        currentLongestTitle = Math.Max(currentLongestTitle, movieList[i].title.Length);
+    }
+    return (ushort) currentLongestTitle;// Most effient to cast here instead of inside caculations
+}
 
 
 // vvv UNUM STUFF vvv
