@@ -1,10 +1,14 @@
 ﻿using NLog;
 
 // Constents
-bool IS_UNIX = true;
+const bool IS_UNIX = true;
+const bool REMOVE_DUPLICATES = true;
+
 const string DELIMETER_1 = ",";
 const string DELIMETER_2 = "|";
 const string START_END_TITLE_WITH_DELIMETER1_INDICATOR = "\"";
+
+
 
 const uint PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000 line before removal
 
@@ -121,10 +125,9 @@ while (true)
 List<Movie> buildMoviesListFromFile(string dataPath)
 {
     List<Movie> moviesInFile = new List<Movie>();
+    List<int> moviesTitleYearHash = new List<int>();//Store data hashes for speed
     // Info
     uint lineNumber = 1;//Should never be negative, so uint
-    // Metrics
-    ushort longestTitle = 0;
 
     // ALL TERMINATORS
     if (!System.IO.File.Exists(dataPath))
@@ -189,10 +192,20 @@ List<Movie> buildMoviesListFromFile(string dataPath)
         if (!recordIsBroken)
         {
             Movie movie = new Movie(movieId, movieTitle, genres, DELIMETER_2);
-            moviesInFile.Add(movie);
+            if(REMOVE_DUPLICATES){
+                //Check local hashtable for existing combination and add
+                int movieTitleYearHash = movie.GetHashCode();
+                if(moviesTitleYearHash.Contains(movieTitleYearHash)){
+                    logger.Warn($"Dupliate movie record on movie \"{movie.title}\" with id \"{movie.id}\". Not including in results.");
+                }else{
+                    moviesInFile.Add(movie);
+                    moviesTitleYearHash.Add(movieTitleYearHash);
+                }
+            }else{
+                moviesInFile.Add(movie);
+            }
+            
             // Console.WriteLine(movie);
-            // Update metrics
-            longestTitle = Math.Max(longestTitle, (ushort)movie.title.Length);
         }
 
         // Update helpers
@@ -214,8 +227,9 @@ void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int record
     string headerDividerLine = $"{headerDividerNode}";
     string headerTitlesLine = "Movie Title";
 
-    headerTitlesLine = string.Format($"{headerDividerLink}{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);//Have to use this as it prevents the constents requirment.
-    headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLink}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLink}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account //Have to use this as it prevents the constents requirment.
+    //Have to use string.Format() as it prevents the constents requirment.
+    headerTitlesLine = string.Format($"{headerDividerLink}{{0,{(longestTitle + headerTitlesLine.Length) / 2}}}", headerTitlesLine);
+    headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLink}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLink}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account
 
     for (int i = 0; i < longestTitle; i++) { headerDividerLine += "-"; }// = is so that the first link spacer is taken into account
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
@@ -251,6 +265,7 @@ ushort getLongestTitle(List<Movie> movieList, int listStartIndex=0, int listEndI
 
 
 // vvv UNUM STUFF vvv
+
 string enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS mainMenuEnum)
 {
 

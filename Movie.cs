@@ -53,7 +53,8 @@ public class Movie : IEquatable<Movie>
     }
     public override int GetHashCode()
     {
-        return id.GetHashCode();
+        // Hash code does not include genres or id, used for sorting out duplicates
+        return $"{this.title}_{this.year}".GetHashCode();
     }
     public bool Equals(Movie other)
     {
