@@ -308,11 +308,11 @@ void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int record
         Movie movie = movieList[i];//Does not like uint, TODO: Make list take larger list or tranfer to diffrent data structure.
         Console.Write(string.Format($"{headerDividerLinkVert}{{0,-{longestTitle}}}|{{1,{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}|", movie.title, (movie.year == -1? ""/*"NTAV"*/ : movie.year)));//Have to use this as it prevents the constents requirment.
         string genreDisplay = " ";
-        if(movie.genres.Length == 1 && movie.genres[0] == "(no genres listed)"){
+        if(movie.genres.Length == 1 && movie.genres[0] == Movie.GENRES.NO_GENRES_LISTED){
             // If no no genres are listed
         }else{
-            foreach(string genre in movie.genres){
-                genreDisplay = $"{genreDisplay}{genre}, ";
+            foreach(Movie.GENRES genre in movie.genres){
+                genreDisplay = $"{genreDisplay}{Movie.GenresEnumToString(genre)}, ";
             }
             if(genreDisplay.Length > 1){
                 genreDisplay = genreDisplay.Substring(0,genreDisplay.Length-2);
@@ -339,7 +339,7 @@ int[] getStats(List<Movie> movieList, int listStartIndex=0, int listEndIndex=-1)
         longestStats[0] = Math.Max(longestStats[0], movieList[i].title.Length);
         longestStats[1] = Math.Max(longestStats[1], movieList[i].genres.Length);
         int totalMovieGenreLength = 0;
-        foreach(string genre in movieList[i].genres){ totalMovieGenreLength += genre.Length; }
+        foreach(Movie.GENRES genre in movieList[i].genres){ totalMovieGenreLength += Movie.GenresEnumToString(genre).Length; }
         if(totalMovieGenreLength > longestStats[2]){
             longestStats[2] = totalMovieGenreLength;
             longestStats[3] = movieList[i].genres.Length;

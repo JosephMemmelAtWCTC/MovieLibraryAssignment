@@ -1,5 +1,30 @@
 public class Movie : IEquatable<Movie>
 {
+
+    public enum GENRES
+    {
+        ACTION,
+        ADVENTURE,
+        ANIMATION,
+        CHILDRENS,
+        COMEDY,
+        CRIME,
+        DOCUMENTARY,
+        DRAMA,
+        FANTASY,
+        FILM_NOIR,
+        HORROR,
+        MUSICAL,
+        MYSTERY,
+        ROMANCE,
+        SCI_FI,
+        THRILLER,
+        WAR,
+        WESTERN,
+        NO_GENRES_LISTED,
+        ERROR_NOT_A_VALID_GENRE
+    }
+
     //TODO: Make programatic in future versions
     public const bool CONVERT_GREGORIAN_TO_HUMAN_ERA = false;
     public const byte YEAR_SPACE_FOR_DIGIT_PLACES = CONVERT_GREGORIAN_TO_HUMAN_ERA? 5 : 4;
@@ -11,7 +36,8 @@ public class Movie : IEquatable<Movie>
 
     public int year{ get; }//Allowed to be negative for indicating not set, in case of using other year system other then gregorian this implementation requires it still to be positive
 
-    public string[] genres{ get; }
+    public GENRES[] genres{ get; }
+
 
     public Movie(int id, string title, /*params*/ string[] genres){//Cannot have "params" with overloaded method also uses strings there
         this.id = id;
@@ -34,7 +60,11 @@ public class Movie : IEquatable<Movie>
             this.title = title;
             this.year = -1;
         }
-        this.genres = genres;
+        this.genres = new GENRES[genres.Length];
+        for(int i = 0; i < genres.Length; i++){
+            this.genres[i] = GetEnumFromString(genres[i]);
+        }
+
     }
     public Movie(int id, string title, string genreStringList, string genreStringDelimiter)
         : this(id, title, genreStringList.Split(genreStringDelimiter))
@@ -62,5 +92,56 @@ public class Movie : IEquatable<Movie>
         if (other == null) return false;
         return (this.GetHashCode().Equals(other.GetHashCode()));
     }
-    // Should also override == and != operators.
+
+    public static GENRES GetEnumFromString(string genreStr)
+    {
+        switch (genreStr)
+        {
+            case "Action":      return GENRES.ACTION;
+            case "Adventure":   return GENRES.ADVENTURE;
+            case "Animation":   return GENRES.ANIMATION;
+            case "Children's":  return GENRES.CHILDRENS;
+            case "Comedy":      return GENRES.COMEDY;
+            case "Crime":       return GENRES.CRIME;
+            case "Documentary": return GENRES.DOCUMENTARY;
+            case "Drama":       return GENRES.DRAMA;
+            case "Fantasy":     return GENRES.FANTASY;
+            case "Film-Noir":   return GENRES.FILM_NOIR;
+            case "Horror":      return GENRES.HORROR;
+            case "Musical":     return GENRES.MUSICAL;
+            case "Mystery":     return GENRES.MYSTERY;
+            case "Romance":     return GENRES.ROMANCE;
+            case "Sci-Fi":      return GENRES.SCI_FI;
+            case "Thriller":    return GENRES.THRILLER;
+            case "War":         return GENRES.WAR;
+            case "Western":     return GENRES.WESTERN;
+            case "(no genres listed)": return GENRES.NO_GENRES_LISTED;
+            default:                   return GENRES.ERROR_NOT_A_VALID_GENRE;
+        }
+    }
+    public static string GenresEnumToString(GENRES genre){
+        switch (genre)
+        {
+            case GENRES.ACTION:      return "Action";
+            case GENRES.ADVENTURE:   return "Adventure";
+            case GENRES.ANIMATION:   return "Animation";
+            case GENRES.CHILDRENS:   return "Children's";
+            case GENRES.COMEDY:      return "Comedy";
+            case GENRES.CRIME:       return "Crime";
+            case GENRES.DOCUMENTARY: return "Documentary";
+            case GENRES.DRAMA:       return "Drama";
+            case GENRES.FANTASY:     return "Fantasy";
+            case GENRES.FILM_NOIR:   return "Film-Noir";
+            case GENRES.HORROR:      return "Horror";
+            case GENRES.MUSICAL:     return "Musical";
+            case GENRES.MYSTERY:     return "Mystery";
+            case GENRES.ROMANCE:     return "Romance";
+            case GENRES.SCI_FI:      return "Sci-Fi";
+            case GENRES.THRILLER:    return "Thriller";
+            case GENRES.WAR:         return "War";
+            case GENRES.WESTERN:     return "Western";
+            case GENRES.NO_GENRES_LISTED: return "(no genres listed)";
+            default:                      return "ERROR: NOT A VALID GENRE";
+        }
+    }
 }
