@@ -5,7 +5,7 @@ public class Movie : IEquatable<Movie>
     public const byte YEAR_SPACE_FOR_DIGIT_PLACES = CONVERT_GREGORIAN_TO_HUMAN_ERA? 5 : 4;
     public const bool ALL_INPUT_YEARS_ARE_HUMAN_ERA = false;
 
-    public int id { get; }// Can add set later if editing answer is implemented
+    public int id { get; }// Can add set later if editing answer is implemented, appears can have duplicate movies with diffrent id's, do not use for filtering
 
     public string title { get; }
 
@@ -44,6 +44,12 @@ public class Movie : IEquatable<Movie>
     {
         return "Id: " + id + " Title: " + title + " Year: " + year;
     }
+    public override int GetHashCode()
+    {
+        // Hash code does not include genres or id, used for sorting out duplicates
+        return $"{this.title}_{this.year}".GetHashCode();
+    }
+
     public override bool Equals(object obj)
     {
         if (obj == null) return false;
@@ -51,15 +57,10 @@ public class Movie : IEquatable<Movie>
         if (objAsMovie == null) return false;
         else return Equals(objAsMovie);
     }
-    public override int GetHashCode()
-    {
-        // Hash code does not include genres or id, used for sorting out duplicates
-        return $"{this.title}_{this.year}".GetHashCode();
-    }
     public bool Equals(Movie other)
     {
         if (other == null) return false;
-        return (this.id.Equals(other.id));
+        return (this.GetHashCode().Equals(other.GetHashCode()));
     }
     // Should also override == and != operators.
 }

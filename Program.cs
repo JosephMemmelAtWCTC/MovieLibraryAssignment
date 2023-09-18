@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using Microsoft.AspNetCore.Localization;
+using NLog;
 
 // Constents
 const bool IS_UNIX = true;
@@ -8,9 +9,7 @@ const string DELIMETER_1 = ",";
 const string DELIMETER_2 = "|";
 const string START_END_TITLE_WITH_DELIMETER1_INDICATOR = "\"";
 
-
-
-const uint PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000 line before removal
+const int PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000 line before removal, use int.MaxValue for infinity, int's length is max for used lists
 
 
 string[] MAIN_MENU_OPTIONS_IN_ORDER = { enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies),
@@ -18,27 +17,29 @@ string[] MAIN_MENU_OPTIONS_IN_ORDER = { enumToStringMainMenuWorkArround(MAIN_MEN
                                         enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Exit)};
 
 
-string loggerPath = Directory.GetCurrentDirectory() + (IS_UNIX ? "/" : "\\") + "nlog.config";
-string moviesPath = Directory.GetCurrentDirectory() + (IS_UNIX ? "/" : "\\") + "movies.csv";
+// Info
+int lastId = 0;//Should never be negative, but not uint for allowing -1 for error checking
+
+string loggerPath        = Directory.GetCurrentDirectory() + (IS_UNIX ? "/" : "\\") + "nlog.config";
+string moviesRecordsPath = Directory.GetCurrentDirectory() + (IS_UNIX ? "/" : "\\") + "movies.csv";
 
 // create instance of Logger
 var logger = LogManager.Setup().LoadConfigurationFromFile(loggerPath).GetCurrentClassLogger();
 
 logger.Info("Main program is running and log mager is started, program is running on a " + (IS_UNIX ? "" : "non-") + "unix-based device.");
 
+
 string optionsSelector(string[] options)
 {
     string userInput;
-    int selectedNumber = -1;
+    int selectedNumber;
     bool userInputWasImproper = true;
     do
     {
         Console.WriteLine("Please select an option from the following...");
         for (int i = 1; i <= options.Length; i++)
         {
-            // Console.WriteLine($"  {i,options.Length.ToString().Length}) {options[i - 1]}");
             Console.WriteLine(string.Format($" {{0,{options.Length.ToString().Length}}}) {{1}}", i, options[i - 1]));//Have to use this as it prevents the constents requirment.
-
         }
         Console.Write("Please enter a option from the list: ");
         userInput = Console.ReadLine();
@@ -61,7 +62,7 @@ string optionsSelector(string[] options)
 }
 
 
-List<Movie> movies = buildMoviesListFromFile(moviesPath);
+List<Movie> movies = buildMoviesListFromFile(moviesRecordsPath);
 if (movies == null)
 {
     logger.Fatal("There was a problem accessing the provided file. Closing program..."); //Does not give path again.
@@ -82,22 +83,22 @@ while (true)
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies))
     {
         string[] options = new string[movies.Count / PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT + (movies.Count % PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT-1 > 0 ? 1 : 0) + 1];// +1 is for exit
-        int[,] optionsRanges = new int[options.Length-1,2];//-2 for no range at options[0], 2 is for range start and range end.  //TODO: Combine arrays so that they aren't needed to be in sync? It's verry temporary and there would be more processing to create and then need to pull out and cast or create new class, ect.
+        int[,] optionsRanges = new int[options.Length-1,2]; //-2 for no range at options[0], 2 is for range start and range end.  //TODO: Combine arrays so that they aren't needed to be in sync? It's verry temporary and there would be more processing to create and then need to pull out and cast or create new class, ect.
         // TODO: AUTO FOR LESS THAN PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT
         options[0] = "Exit without printing report.";
         int recordsRangeStart;
         int recordsRangeEnd;
-        for (int i = 0; i < options.Length - 2; i++)//-2 to exclude last range
+        for (int i = 0; i < options.Length - 2; i++) //-2 to exclude last range
         {
-            recordsRangeStart = (int) (i * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
-            recordsRangeEnd   = (int) ((i + 1) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1);
+            recordsRangeStart = i * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT;
+            recordsRangeEnd   = (i + 1) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1;
             optionsRanges[i,0] = recordsRangeStart;
             optionsRanges[i,1] = recordsRangeEnd;
             options[i+1] = $"List movies range {recordsRangeStart}-{recordsRangeEnd}";
         }
-        recordsRangeStart = (int) ((options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
+        recordsRangeStart = (options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT;
         options[options.Length - 1] = $"List movies range {recordsRangeStart}-{movies.Count}";
-        optionsRanges[options.Length-2,0] = (int) ((options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT);
+        optionsRanges[options.Length-2,0] = (options.Length - 2) * PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT;
         optionsRanges[options.Length-2,1] = movies.Count;
 
         string optionStringSelected = optionsSelector(options);
@@ -114,6 +115,49 @@ while (true)
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies))
     {
+        Console.WriteLine("\n  -~:<{[( Add to records )]}>:~-\n");
+        int newId = lastId + 1; //Assume last record id is not out of order, avoid using auto id for placing with repeat id's that may have existed before but then were removed. Option avaiable if manually entering id.
+        string userInputRaw;
+        int userChoosenId;
+        do{
+            Console.Write($"To use movie id \"{newId}\", leave blank, else enter integer now: ");
+            userInputRaw = Console.ReadLine();
+            if (int.TryParse(userInputRaw, out userChoosenId) || userInputRaw.Length == 0) //Duplicate .Length == 0 checking to have code in the same location
+            {
+                if(userInputRaw.Length == 0 || userChoosenId == newId){ //Skip check if using auto id, manually typed or by entering blank
+                    userChoosenId = newId;
+                    lastId++;//Increment last id
+                }else if(userChoosenId < 0){
+                    logger.Error("Your choosen id choice was not a positive integer, please try again.");
+                    userChoosenId = -1;
+                }else{
+                    // TODO: Make more efficent
+                    foreach (Movie movie in movies) // Check if id is already used
+                    {
+                        if(movie.id == userChoosenId){
+                            logger.Error("Your choosen id is already in use, please try again.");
+                            userChoosenId = -1;
+                        }
+                    }
+                }
+            }else{
+                //User response was not a integer
+                logger.Error("Your choosen id choice was not a integer, please try again.");
+                userChoosenId = -1; //Was not an integer
+            }
+        }while(userChoosenId == -1);
+
+        //Write the record
+// TODO, ensue no errors with SW!
+        try{
+            StreamWriter sw = new StreamWriter(moviesRecordsPath, true);
+            sw.WriteLine($"{userChoosenId}{DELIMETER_1}");
+            sw.Close();
+        }catch(FileNotFoundException ex){
+            logger.Fatal($"The file, '{moviesRecordsPath}' was not found.");
+        }catch(Exception ex){
+            logger.Fatal(ex.Message);
+        }
 
     }
     else
@@ -127,7 +171,8 @@ List<Movie> buildMoviesListFromFile(string dataPath)
 {
     List<Movie> moviesInFile = new List<Movie>();
     List<int> moviesTitleYearHash = new List<int>();//Store data hashes for speed
-    // Info
+
+    // Info for tracking
     uint lineNumber = 1;//Should never be negative, so uint
 
     // ALL TERMINATORS
@@ -182,16 +227,19 @@ List<Movie> buildMoviesListFromFile(string dataPath)
             logger.Error($"Broken movie record on line #{lineNumber} (\"{line}\"). Movie id is not a integer. Movie id must be a integer.");
             recordIsBroken = true;
         }
-        string movieTitle = movieParts[1];
-        if (movieTitle.Length == 0 || movieTitle == " ")
-        {
-            logger.Error($"Broken movie record on line #{lineNumber} (\"{line}\"). Movie title is empty. Movie title cannot be blank or empty. !!!!!" + movieTitle + "!!!!!");
-            recordIsBroken = true;
+        string movieTitle = "";
+        if (!recordIsBroken){
+            movieTitle = movieParts[1];
+            if (movieTitle.Length == 0 || movieTitle == " ")
+            {
+                logger.Error($"Broken movie record on line #{lineNumber} (\"{line}\"). Movie title is empty. Movie title cannot be blank or empty. !!!!!" + movieTitle + "!!!!!");
+                recordIsBroken = true;
+            }
         }
 
-        string genres = movieParts[2];
         if (!recordIsBroken)
         {
+            string genres = movieParts[2];
             Movie movie = new Movie(movieId, movieTitle, genres, DELIMETER_2);
             if(REMOVE_DUPLICATES){
                 //Check local hashtable for existing combination and add
@@ -211,9 +259,7 @@ List<Movie> buildMoviesListFromFile(string dataPath)
 
         // Update helpers
         lineNumber++;
-        // if(lineNumber > 99){
-        //     break;
-        // }
+        lastId = movieId;
     }
     sr.Close();
     return moviesInFile;
@@ -311,7 +357,7 @@ string enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS mainMenuEnum)
     return mainMenuEnum switch
     {
         MAIN_MENU_OPTIONS.Exit => "Quit program",
-        MAIN_MENU_OPTIONS.View_Movies => "View all movies on file",
+        MAIN_MENU_OPTIONS.View_Movies => $"View movies on file (display max ammount is {PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT})",
         MAIN_MENU_OPTIONS.Add_Movies => "Add movies to file",
         _ => "ERROR"
     };
