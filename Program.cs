@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Localization;
-using NLog;
+﻿using NLog;
 
 // Constents
 const bool IS_UNIX = true;
@@ -15,7 +14,6 @@ const int PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000
 string[] MAIN_MENU_OPTIONS_IN_ORDER = { enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies),
                                         enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies),
                                         enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Exit)};
-
 
 // Info
 int lastId = 0;//Should never be negative, but not uint for allowing -1 for error checking
@@ -34,31 +32,41 @@ string optionsSelector(string[] options)
     string userInput;
     int selectedNumber;
     bool userInputWasImproper = true;
+    List<int> cleanedListIndexs = new List<int>{};
+    string optionsTextAsStr = ""; //So only created once. Requires change if adjustable width is added
+
+    for (int i = 0; i < options.Length; i++)
+    {
+        // options[i] = options[i].Trim();//Don't trim so when used, spaces can be used to do spaceing
+        if(options[i] != null && options[i].Replace(" ","").Length > 0){//Ensure that not empty or null
+            cleanedListIndexs.Add(i);//Add index to list
+            optionsTextAsStr = $"{optionsTextAsStr}\n{string.Format($" {{0,{options.Length.ToString().Length}}}) {{1}}", cleanedListIndexs.Count(), options[i])}";//Have to use this as it prevents the constents requirment.
+        }
+    }
+    optionsTextAsStr = optionsTextAsStr.Substring(1); //Remove first \n
+    
     do
     {
         Console.WriteLine("Please select an option from the following...");
-        for (int i = 1; i <= options.Length; i++)
-        {
-            Console.WriteLine(string.Format($" {{0,{options.Length.ToString().Length}}}) {{1}}", i, options[i - 1]));//Have to use this as it prevents the constents requirment.
-        }
+        Console.WriteLine(optionsTextAsStr);
         Console.Write("Please enter a option from the list: ");
-        userInput = Console.ReadLine();
+        userInput = Console.ReadLine().Trim();
 
         //TODO: Move to switch without breaks instead of ifs or if-elses?
         if (!int.TryParse(userInput, out selectedNumber))
         {// User response was not a integer
             logger.Error("Your selector choice was not a integer, please try again.");
         }
-        else if (selectedNumber < 1 || selectedNumber > options.Length)
+        else if (selectedNumber < 1 || selectedNumber > cleanedListIndexs.Count()) //Is count because text input index starts at 1
         {// User response was out of bounds
-            logger.Error($"Your selector choice was not within bounds, please try again. (Range is 1-{options.Length})");
+            logger.Error($"Your selector choice was not within bounds, please try again. (Range is 1-{cleanedListIndexs.Count()})");
         }
         else
         {
             userInputWasImproper = false;
         }
     } while (userInputWasImproper);
-    return options[selectedNumber - 1];
+    return options[cleanedListIndexs[selectedNumber - 1]];
 }
 
 
@@ -115,43 +123,127 @@ while (true)
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies))
     {
+
         Console.WriteLine("\n  -~:<{[( Add to records )]}>:~-\n");
-        int newId = lastId + 1; //Assume last record id is not out of order, avoid using auto id for placing with repeat id's that may have existed before but then were removed. Option avaiable if manually entering id.
         string userInputRaw;
-        int userChoosenId;
+        int userChoosenInteger;
+
+        // Movie title
+        string movieTitle;
+        bool movieTitleFailed = true;
+        do{
+            Console.Write("Please enter the name of the new movie: ");
+            userInputRaw = Console.ReadLine().Trim();
+            movieTitle = userInputRaw.Trim();
+            if(movieTitle.Length == 0){
+                logger.Error("Movie name cannot be left blank, please try again.");
+            }else{
+                movieTitleFailed = false;
+            }
+
+            if(userInputRaw.Contains(",")){
+                movieTitle = $"\"{userInputRaw}\"";
+            }
+        }while(movieTitleFailed);
+
+        // Movie year
+        int currentYear = int.Parse($"{DateTime.Now:yyyy}");
+
+        bool yearIsInvalid;
+        do{
+            Console.Write($"To use movie year \"{currentYear}\", leave blank, else enter integer now: ");
+            userInputRaw = Console.ReadLine().Trim();
+            if (int.TryParse(userInputRaw, out userChoosenInteger) || userInputRaw.Length == 0) //Duplicate .Length == 0 checking to have code in the same location
+            {
+                if(userInputRaw.Length == 0 || userChoosenInteger == currentYear){ //Skip check if using auto year, manually typed or by entering blank
+                    userChoosenInteger = currentYear;
+                    yearIsInvalid = false;
+                }else if(userChoosenInteger < 0){
+                    logger.Error("Your choosen year choice was not a positive integer, please try again.");
+                    yearIsInvalid = true;
+                }else{
+                    yearIsInvalid = false;
+                }
+            }else{
+                //User response was not a integer
+                logger.Error("Your choosen id choice was not a integer, please try again.");
+                yearIsInvalid = true; //Was not an integer
+            }
+        }while(yearIsInvalid);
+        int movieYear = userChoosenInteger;
+
+        int newId = lastId + 1; //Assume last record id is not out of order, avoid using auto id for placing with repeat id's that may have existed before but then were removed. Option avaiable if manually entering id.
         do{
             Console.Write($"To use movie id \"{newId}\", leave blank, else enter integer now: ");
-            userInputRaw = Console.ReadLine();
-            if (int.TryParse(userInputRaw, out userChoosenId) || userInputRaw.Length == 0) //Duplicate .Length == 0 checking to have code in the same location
+            userInputRaw = Console.ReadLine().Trim();
+            if (int.TryParse(userInputRaw, out userChoosenInteger) || userInputRaw.Length == 0) //Duplicate .Length == 0 checking to have code in the same location
             {
-                if(userInputRaw.Length == 0 || userChoosenId == newId){ //Skip check if using auto id, manually typed or by entering blank
-                    userChoosenId = newId;
+                if(userInputRaw.Length == 0 || userChoosenInteger == newId){ //Skip check if using auto id, manually typed or by entering blank
+                    userChoosenInteger = newId;
                     lastId++;//Increment last id
-                }else if(userChoosenId < 0){
+                }else if(userChoosenInteger < 0){
                     logger.Error("Your choosen id choice was not a positive integer, please try again.");
-                    userChoosenId = -1;
+                    userChoosenInteger = -1;
                 }else{
                     // TODO: Make more efficent
                     foreach (Movie movie in movies) // Check if id is already used
                     {
-                        if(movie.id == userChoosenId){
+                        if(movie.id == userChoosenInteger){
                             logger.Error("Your choosen id is already in use, please try again.");
-                            userChoosenId = -1;
+                            userChoosenInteger = -1;
                         }
                     }
                 }
             }else{
                 //User response was not a integer
                 logger.Error("Your choosen id choice was not a integer, please try again.");
-                userChoosenId = -1; //Was not an integer
+                userChoosenInteger = -1; //Was not an integer
             }
-        }while(userChoosenId == -1);
+        }while(userChoosenInteger == -1);
+
+        // Genres selection
+        // List<Movie.GENRES> newMovieGenres = new List<Movie.GENRES>{};
+        string newMovieGenresStr = "";
+
+        Movie.GENRES[] allMovieGenres = (Movie.GENRES[])Enum.GetValues(typeof(Movie.GENRES));
+        string[] remainingGenresAsStrings = new string[allMovieGenres.Length]; // -1 to remove error enum but then +1 for the exit option
+        for(int i = 0; i < remainingGenresAsStrings.Length; i++){
+            remainingGenresAsStrings[i] = Movie.GenresEnumToString(allMovieGenres[i]);
+        }
+        remainingGenresAsStrings[remainingGenresAsStrings.Length-1] = "Done entering genres";
+
+        string genreSelectedStr;
+        do{
+            genreSelectedStr = optionsSelector(remainingGenresAsStrings);
+            newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{genreSelectedStr}";
+            for(int i = 0; i < remainingGenresAsStrings.Length; i++){
+                if(genreSelectedStr == remainingGenresAsStrings[i]){
+                    remainingGenresAsStrings[i] = null; //Blank options are removed from options selector
+                    i = remainingGenresAsStrings.Length;
+                }
+            }
+            Console.WriteLine("genreSelectedStr = "+genreSelectedStr);
+        }while(genreSelectedStr != remainingGenresAsStrings[remainingGenresAsStrings.Length-1]); //Last index is done option
+        if(newMovieGenresStr.Length > 2){
+            newMovieGenresStr = newMovieGenresStr.Substring(0, newMovieGenresStr.Length-2); //Remove last DELEMITER_2
+        }
+        
+
+        // optionsSelector();
+        int movieId = userChoosenInteger;
 
         //Write the record
 // TODO, ensue no errors with SW!
         try{
             StreamWriter sw = new StreamWriter(moviesRecordsPath, true);
-            sw.WriteLine($"{userChoosenId}{DELIMETER_1}");
+
+            if(movieTitle.EndsWith("\"")){//Merge year with title (some exisiting records do not have a year, but going forward, all should so it's included here)
+                movieTitle = $"{movieTitle.Substring(0,movieTitle.Length-2)} ({movieYear})\"";
+            }else{
+                movieTitle = $"{movieTitle} ({movieYear})";
+            }
+            sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
+            movies.Add(new Movie(movieId, movieTitle, newMovieGenresStr, DELIMETER_2));
             sw.Close();
         }catch(FileNotFoundException ex){
             logger.Fatal($"The file, '{moviesRecordsPath}' was not found.");
@@ -159,9 +251,7 @@ while (true)
             logger.Fatal(ex.Message);
         }
 
-    }
-    else
-    {
+    }else{
         logger.Fatal("Somehow, menuCheckCommand was slected that did not fall under the the existing commands, this should never have been triggered. Improper menuCheckCommand is getting through");
     }
 
@@ -259,7 +349,7 @@ List<Movie> buildMoviesListFromFile(string dataPath)
 
         // Update helpers
         lineNumber++;
-        lastId = movieId;
+        lastId = Math.Max(lastId, movieId);
     }
     sr.Close();
     return moviesInFile;
