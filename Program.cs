@@ -215,21 +215,27 @@ while (true)
         string genreSelectedStr;
         do{
             genreSelectedStr = optionsSelector(remainingGenresAsStrings);
-            newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{genreSelectedStr}";
             for(int i = 0; i < remainingGenresAsStrings.Length; i++){
                 if(genreSelectedStr == remainingGenresAsStrings[i]){
+                    if(genreSelectedStr == remainingGenresAsStrings[remainingGenresAsStrings.Length-1]){ //Last item was added just above as not an enum, but to exit
+                        genreSelectedStr = null; //Inform that do-while is over
+                    }else if(genreSelectedStr == Movie.GenresEnumToString(Movie.GENRES.NO_GENRES_LISTED)){ //Exit early that none are listed
+                        newMovieGenresStr = genreSelectedStr;
+                        genreSelectedStr = null; //Inform that do-while is over
+                    }else{
+                        newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{genreSelectedStr}";
+                    }
                     remainingGenresAsStrings[i] = null; //Blank options are removed from options selector
                     i = remainingGenresAsStrings.Length;
                 }
             }
-            Console.WriteLine("genreSelectedStr = "+genreSelectedStr);
-        }while(genreSelectedStr != remainingGenresAsStrings[remainingGenresAsStrings.Length-1]); //Last index is done option
-        if(newMovieGenresStr.Length > 2){
-            newMovieGenresStr = newMovieGenresStr.Substring(0, newMovieGenresStr.Length-2); //Remove last DELEMITER_2
+            remainingGenresAsStrings[remainingGenresAsStrings.Length-2] = null; //Remove no genres listed on the first round
+        }while(genreSelectedStr != null); //Last index is done option
+        if(newMovieGenresStr.Length > 2){ //Means that at least one item was choosen
+            newMovieGenresStr = newMovieGenresStr.Substring(1); //Remove first DELEMITER_2, should always trigger
         }
         
 
-        // optionsSelector();
         int movieId = userChoosenInteger;
 
         //Write the record
@@ -243,8 +249,12 @@ while (true)
                 movieTitle = $"{movieTitle} ({movieYear})";
             }
             sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
-            movies.Add(new Movie(movieId, movieTitle, newMovieGenresStr, DELIMETER_2));
             sw.Close();
+
+            // Inform user that movie was created and added    
+            Movie newMovie = new Movie(movieId, movieTitle, newMovieGenresStr, DELIMETER_2);
+            movies.Add(newMovie);
+            Console.WriteLine($"Added movie \"{newMovie.title}\" under id \"{newMovie.id}\" with {newMovie.genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).2");
         }catch(FileNotFoundException ex){
             logger.Fatal($"The file, '{moviesRecordsPath}' was not found.");
         }catch(Exception ex){
