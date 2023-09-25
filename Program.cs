@@ -9,7 +9,8 @@ const string DELIMETER_2 = "|";
 const string START_END_TITLE_WITH_DELIMETER1_INDICATOR = "\"";
 
 const int PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT = 1_000; //Tested, >~ 1,000 line before removal, use int.MaxValue for infinity, int's length is max for used lists
-
+const ushort DEVICE_MAX_TITLE_LENGTH = 105; //Hardcoded value dependent on terminal, sets upper limit for title length
+const ushort DEVICE_MAX_GENRE_SECTION_LENGTH = 55; //Hardcoded value dependent on terminal, sets upper limit for title length
 
 string[] MAIN_MENU_OPTIONS_IN_ORDER = { enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies),
                                         enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies),
@@ -25,6 +26,8 @@ string moviesRecordsPath = Directory.GetCurrentDirectory() + (IS_UNIX ? "/" : "\
 var logger = LogManager.Setup().LoadConfigurationFromFile(loggerPath).GetCurrentClassLogger();
 
 logger.Info("Main program is running and log mager is started, program is running on a " + (IS_UNIX ? "" : "non-") + "unix-based device.");
+
+List<int> moviesTitleYearHash = new List<int>();//Store data hashes for speed, stored centrally. TODO: Move out if needed
 
 
 string optionsSelector(string[] options)
@@ -49,7 +52,7 @@ string optionsSelector(string[] options)
     {
         Console.WriteLine("Please select an option from the following...");
         Console.WriteLine(optionsTextAsStr);
-        Console.Write("Please enter a option from the list: ");
+        Console.Write("Please enter an option from the list: ");
         userInput = Console.ReadLine().Trim();
 
         //TODO: Move to switch without breaks instead of ifs or if-elses?
@@ -248,13 +251,27 @@ while (true)
             }else{
                 movieTitle = $"{movieTitle} ({movieYear})";
             }
-            sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
-            sw.Close();
 
             // Inform user that movie was created and added    
             Movie newMovie = new Movie(movieId, movieTitle, newMovieGenresStr, DELIMETER_2);
-            movies.Add(newMovie);
-            Console.WriteLine($"Added movie \"{newMovie.title}\" under id \"{newMovie.id}\" with {newMovie.genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).2");
+            if(REMOVE_DUPLICATES){
+                //Check hashtable for existing combination and add
+                int movieTitleYearHash = newMovie.GetHashCode();
+                if(moviesTitleYearHash.Contains(movieTitleYearHash)){
+                    logger.Warn($"Dupliate movie record on movie \"{newMovie.title}\" with id \"{newMovie.id}\". Not adding to records.");
+                }else{
+                    movies.Add(newMovie);
+                    moviesTitleYearHash.Add(movieTitleYearHash);
+                    sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
+                    sw.Close();
+                    Console.WriteLine($"Added movie \"{newMovie.title}\" under id \"{newMovie.id}\" with {newMovie.genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).");
+                }
+            }else{
+                movies.Add(newMovie);
+                sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
+                sw.Close();
+                Console.WriteLine($"Added movie \"{newMovie.title}\" under id \"{newMovie.id}\" with {newMovie.genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).");
+            }
         }catch(FileNotFoundException ex){
             logger.Fatal($"The file, '{moviesRecordsPath}' was not found.");
         }catch(Exception ex){
@@ -270,7 +287,6 @@ while (true)
 List<Movie> buildMoviesListFromFile(string dataPath)
 {
     List<Movie> moviesInFile = new List<Movie>();
-    List<int> moviesTitleYearHash = new List<int>();//Store data hashes for speed
 
     // Info for tracking
     uint lineNumber = 1;//Should never be negative, so uint
@@ -342,10 +358,10 @@ List<Movie> buildMoviesListFromFile(string dataPath)
             string genres = movieParts[2];
             Movie movie = new Movie(movieId, movieTitle, genres, DELIMETER_2);
             if(REMOVE_DUPLICATES){
-                //Check local hashtable for existing combination and add
+                //Check hashtable for existing combination and add
                 int movieTitleYearHash = movie.GetHashCode();
                 if(moviesTitleYearHash.Contains(movieTitleYearHash)){
-                    logger.Warn($"Dupliate movie record on movie \"{movie.title}\" with id \"{movie.id}\". Not including in results.");
+                    logger.Warn($"Dupliate movie record on movie \"{movie.title.Replace("\"","")}\" with id \"{movie.id}\", year \"{movie.year}\". Not including in results.");
                 }else{
                     moviesInFile.Add(movie);
                     moviesTitleYearHash.Add(movieTitleYearHash);
@@ -367,6 +383,10 @@ List<Movie> buildMoviesListFromFile(string dataPath)
 
 void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int recordEndNum, ushort longestTitle, ushort longestGenresRawLength, ushort longestGenresLengthCount)
 {
+
+    // Adjust to ensure fit within screen
+    longestTitle = Math.Min(longestTitle, DEVICE_MAX_TITLE_LENGTH);
+    
     // After list is created, display results to user.
     char headerDividerNode = '+';
     char headerDividerLinkVert = '|';
@@ -382,17 +402,16 @@ void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int record
     headerTitlesLine = string.Format($"{{0,-{longestTitle+1}}}{headerDividerLinkVert}{{1,-{Movie.YEAR_SPACE_FOR_DIGIT_PLACES}}}{headerDividerLinkVert}", headerTitlesLine, "Year"); //+1 is so that the first link spacer is taken into account
     
     headerGenreSegment = string.Format($"{{0,-{(longestGenresRawLength+(longestGenresLengthCount-1)*2+headerGenreSegment.Length)/2}}}",headerGenreSegment);
-    headerGenreSegment = string.Format($"{{0,{longestGenresRawLength+(longestGenresLengthCount-1)*2+1}}}",headerGenreSegment);
+    headerGenreSegment = string.Format($"{{0,{Math.Min(longestGenresRawLength+(longestGenresLengthCount-1)*2+1, DEVICE_MAX_GENRE_SECTION_LENGTH)}}}",headerGenreSegment);
     headerTitlesLine = $"{headerTitlesLine}{headerGenreSegment}{headerDividerLinkVert}";
 
-    for (int i = 0; i < longestTitle; i++) { headerDividerLine += headerDividerLinkHorz; }// = is so that the first link spacer is taken into account
+    for (int i = 0; i < Math.Min(longestTitle, DEVICE_MAX_TITLE_LENGTH); i++) { headerDividerLine += headerDividerLinkHorz; }// = is so that the first link spacer is taken into account
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
     for (int i = 0; i < Movie.YEAR_SPACE_FOR_DIGIT_PLACES; i++) { headerDividerLine += headerDividerLinkHorz; }
 
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
 
-    Console.WriteLine("longestGenresRawLength = "+longestGenresRawLength);
-    for (int i = 0; i < longestGenresRawLength+(longestGenresLengthCount-1)*2+1; i++) { headerDividerLine += headerDividerLinkHorz; } //Take into account, space for ", ", +1 is because of the added " " beforehand
+    for (int i = 0; i < Math.Min(longestGenresRawLength+(longestGenresLengthCount-1)*2+1, DEVICE_MAX_GENRE_SECTION_LENGTH); i++) { headerDividerLine += headerDividerLinkHorz; } //Take into account, space for ", ", +1 is because of the added " " beforehand
 
     headerDividerLine = $"{headerDividerLine}{headerDividerNode}";
 
@@ -418,7 +437,7 @@ void displayMoviesFromList(List<Movie> movieList, int recordStartNum, int record
                 genreDisplay = genreDisplay.Substring(0,genreDisplay.Length-2);
             }
         }
-        Console.WriteLine(string.Format($"{{0,-{longestGenresRawLength+(longestGenresLengthCount-1)*2+1}}}|", genreDisplay));
+        Console.WriteLine(string.Format($"{{0,-{Math.Min(longestGenresRawLength+(longestGenresLengthCount-1)*2+1,DEVICE_MAX_GENRE_SECTION_LENGTH)}}}|", genreDisplay));
     }
     Console.WriteLine(headerDividerLine);
     Console.WriteLine(); //Give space after report
@@ -457,7 +476,7 @@ string enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS mainMenuEnum)
     return mainMenuEnum switch
     {
         MAIN_MENU_OPTIONS.Exit => "Quit program",
-        MAIN_MENU_OPTIONS.View_Movies => $"View movies on file (display max ammount is {PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT})",
+        MAIN_MENU_OPTIONS.View_Movies => $"View movies on file (display max ammount is {PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT:N0})",
         MAIN_MENU_OPTIONS.Add_Movies => "Add movies to file",
         _ => "ERROR"
     };
