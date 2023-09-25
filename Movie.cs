@@ -77,39 +77,67 @@ public class Movie : IEquatable<Movie>, IComparable<Movie>
         : this(id, title, genreStringList.Split(genreStringDelimiter))
     { }
 
-    public override string ToString()
-    {
+    public override string ToString(){
         return "Id: " + Id + " Title: " + Title + " Year: " + Year;
     }
-    public override int GetHashCode()
-    {
+    public override int GetHashCode(){
         // Hash code does not include genres or id, used for sorting out duplicates
         return $"{this.Title}_{this.Year}".GetHashCode();
     }
 
-    public override bool Equals(object obj)
-    {
+    public override bool Equals(object obj){
         if (obj == null) return false;
         Movie objAsMovie = obj as Movie;
         if (objAsMovie == null) return false;
         else return Equals(objAsMovie);
     }
-    public bool Equals(Movie other)
-    {
+    public bool Equals(Movie other){
         if (other == null) return false;
         return (this.GetHashCode().Equals(other.GetHashCode()));
     }
 
-    // Default comparer for Movie type (year)
-    public int CompareTo(Movie compareMovie)
-    {
-        // A null value means that this object is greater.
-        if (compareMovie == null)
-            return 1;
-        else
-            return this.Year.CompareTo(compareMovie.Year);
+    // Default comparer for Movie (year decending then alphabetically decending)
+    public int CompareTo(Movie compareMovie){
+        return CompareToYear(compareMovie, true);
     }
 
+    // Secondary comparer for Movie (year decending)
+    public int CompareToYear(Movie compareMovie, bool sortTitleSecondLayer = false){ //If sortYearSecondLayer, then filter by title (decending) if they have the same year
+        // A null value means that this object is greater.
+        if(compareMovie == null){
+            return 1;
+        }else{
+            int compared = this.Year.CompareTo(compareMovie.Year);
+            if(compared == 0){ //Same year
+                if(sortTitleSecondLayer){ //Sort alphabetically by title
+                    return CompareToTitle(compareMovie);
+                }else{
+                    return 0;
+                }
+            }else{ //Diffrent year
+                return compared;
+            }
+        }
+    }
+
+    // Secondary comparer for Movie (tile alphabetically decending)
+    public int CompareToTitle(Movie compareMovie, bool sortYearSecondLayer = false){ //If sortYearSecondLayer, then filter by year (decending) if they have the same title
+        // A null value means that this object is greater.
+        if(compareMovie == null){
+            return 1;
+        }else{
+            int compared = this.Title.CompareTo(compareMovie.Title);
+            if(compared == 0){ //Same title
+                if(sortYearSecondLayer){ //Sort by year
+                    return CompareToYear(compareMovie);
+                }else{
+                    return 0;
+                }
+            }else{ //Diffrent title
+                return compared;
+            }
+        }
+    }
 
     public static GENRES GetEnumFromString(string genreStr)
     {

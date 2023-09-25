@@ -58,6 +58,8 @@ string optionsSelector(string[] options)
     }
     optionsTextAsStr = optionsTextAsStr.Substring(1); //Remove first \n
 
+    // Seprate from rest by adding a blank line
+    Console.WriteLine();
     do
     {
         Console.WriteLine("Please select an option from the following...");
@@ -79,6 +81,8 @@ string optionsSelector(string[] options)
             userInputWasImproper = false;
         }
     } while (userInputWasImproper);
+    // Seprate from rest by adding a blank line
+    Console.WriteLine();
     return options[cleanedListIndexs[selectedNumber - 1]];
 }
 
@@ -107,16 +111,14 @@ while (true)
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.View_Movies_Filter))
     {
+        bool presentRange = true;
         List<Movie> filteredMovies = movies.GetRange(0, movies.Count);
-        // @@@
+
         string option = optionsSelector(FILTER_OPTIONS_IN_ORDER);
 
-        if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Exit))
-        {
-            break;
-        }
-        else if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Year))
-        {
+        if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Exit)){
+            presentRange = false;
+        }else if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Year)){
             string userInputRaw;
             int userChoosenInteger;
 
@@ -197,19 +199,59 @@ while (true)
             for (int i = 0; i < filteredMovies.Count;)
             {
                 Movie movie = filteredMovies[i];
-                if (movie.Year >= startingFilterYear && movie.Year <= endingFilterYear)
-                {
+                if (movie.Year >= startingFilterYear && movie.Year <= endingFilterYear){
                     i++;
-                }
-                else
-                {
+                }else{
                     filteredMovies.Remove(movie);
                 }
             }
-            filteredMovies.Sort();
+            filteredMovies.Sort(); //Sort by year and then by title as filtered by title
+        }else if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Title)){
+            string userInputRaw;
+            string userSearchStr = null;
+            do
+            {
+                Console.Write("Please enter the text you would like to search for in the title: ");
+                userInputRaw = Console.ReadLine().Trim();
+                if(userInputRaw.Length == 0){
+                    logger.Error("Your search text choice cannot be be empty. Please enter more text.");
+                }else{
+                    userSearchStr = userInputRaw;
+                }
+            }while(userSearchStr == null);
+            
+            // TODO: Start more thread and parallise searching?
+            for (int i = 0; i < filteredMovies.Count;)
+            {
+                Movie movie = filteredMovies[i];
+                if(movie.Title.Contains(userSearchStr, StringComparison.InvariantCultureIgnoreCase)){ //Use InvariantCultureIgnoreCase to include things like é's and ö's
+                    i++;
+                }else{
+                    filteredMovies.Remove(movie);
+                }
+            }
+            //Sort by title and then by year as filtered by title
+            filteredMovies.Sort((movie1, movie2) => movie1.CompareToTitle(movie2, true));
+        }else if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Genre)){
+            Movie.GENRES[] filterByGenres = repeatingGenreOptionsSelector(false, true).ToArray();
+            // TODO: Start more thread and parallise searching?
+            for (int i = 0; i < filteredMovies.Count; ){
+                Movie movie = filteredMovies[i];
+                bool containsAllSelectedGenres = true;
+                foreach(Movie.GENRES genre in filterByGenres){
+                    if(movie.Genres.Contains(genre)){
+                    }else{
+                        containsAllSelectedGenres = false;
+                        break;
+                    }
+                }
+                if(containsAllSelectedGenres){ //Use InvariantCultureIgnoreCase to include things like é's and ö's
+                    i++;
+                }else{
+                    filteredMovies.Remove(movie);
+                }
+            }
         }
-
-
 
         // string[] remainingGenresAsStrings = new string[allMovieGenres.Length]; // -1 to remove error enum but then +1 for the exit option
         // for(int i = 0; i < remainingGenresAsStrings.Length; i++){
@@ -218,8 +260,9 @@ while (true)
         // remainingGenresAsStrings[remainingGenresAsStrings.Length-1] = "Done entering genres";
         // optionsSelector()
 
-
-        presentListRange(filteredMovies);
+        if(presentRange){
+            presentListRange(filteredMovies);
+        }
     }
     else if (menuCheckCommand == enumToStringMainMenuWorkArround(MAIN_MENU_OPTIONS.Add_Movies))
     {
@@ -327,44 +370,20 @@ while (true)
         // List<Movie.GENRES> newMovieGenres = new List<Movie.GENRES>{};
         string newMovieGenresStr = "";
 
-        string[] remainingGenresAsStrings = new string[ALL_MOVIE_GENRES.Length]; // -1 to remove error enum but then +1 for the exit option
-        for (int i = 0; i < remainingGenresAsStrings.Length; i++)
-        {
-            remainingGenresAsStrings[i] = Movie.GenresEnumToString(ALL_MOVIE_GENRES[i]);
-        }
-        remainingGenresAsStrings[remainingGenresAsStrings.Length - 1] = "Done entering genres";
 
-        string genreSelectedStr;
-        do
-        {
-            genreSelectedStr = optionsSelector(remainingGenresAsStrings);
-            for (int i = 0; i < remainingGenresAsStrings.Length; i++)
-            {
-                if (genreSelectedStr == remainingGenresAsStrings[i])
-                {
-                    if (genreSelectedStr == remainingGenresAsStrings[remainingGenresAsStrings.Length - 1])
-                    { //Last item was added just above as not an enum, but to exit
-                        genreSelectedStr = null; //Inform that do-while is over
-                    }
-                    else if (genreSelectedStr == Movie.GenresEnumToString(Movie.GENRES.NO_GENRES_LISTED))
-                    { //Exit early that none are listed
-                        newMovieGenresStr = genreSelectedStr;
-                        genreSelectedStr = null; //Inform that do-while is over
-                    }
-                    else
-                    {
-                        newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{genreSelectedStr}";
-                    }
-                    remainingGenresAsStrings[i] = null; //Blank options are removed from options selector
-                    i = remainingGenresAsStrings.Length;
-                }
-            }
-            remainingGenresAsStrings[remainingGenresAsStrings.Length - 2] = null; //Remove no genres listed on the first round
-        } while (genreSelectedStr != null); //Last index is done option
-        if (newMovieGenresStr.Length > 2)
-        { //Means that at least one item was choosen
-            newMovieGenresStr = newMovieGenresStr.Substring(1); //Remove first DELEMITER_2, should always trigger
+        Movie.GENRES[] selectedGenres = repeatingGenreOptionsSelector(true, false).ToArray();
+        foreach(Movie.GENRES genre in selectedGenres){
+            newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{Movie.GenresEnumToString(genre)}";
         }
+
+
+    if (newMovieGenresStr.Length > 2)
+    { //Means that at least one item was choosen
+        newMovieGenresStr = newMovieGenresStr.Substring(1); //Remove first DELEMITER_2, should always trigger
+    }else{
+        //Add in empty identifer
+        newMovieGenresStr = $"{Movie.GenresEnumToString(Movie.GENRES.NO_GENRES_LISTED)}";
+    }
 
 
         int movieId = userChoosenInteger;
@@ -400,7 +419,7 @@ while (true)
                     moviesTitleYearHash.Add(movieTitleYearHash);
                     sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
                     sw.Close();
-                    Console.WriteLine($"Added movie \"{newMovie.Title}\" under id \"{newMovie.Id}\" with {newMovie.Genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).");
+                    Console.WriteLine($"Added movie \"{newMovie.Title.Replace("\"","")}\" under id \"{newMovie.Id}\" with {newMovie.Genres.Length} genre identifier{(newMovie.Genres.Length>1? "s": "")}{(newMovie.Genres[0]==Movie.GENRES.NO_GENRES_LISTED? " (having none is included as a an identifier of being empty)" : "")}.");
                 }
             }
             else
@@ -408,7 +427,7 @@ while (true)
                 movies.Add(newMovie);
                 sw.WriteLine($"{movieId}{DELIMETER_1}{movieTitle}{DELIMETER_1}{newMovieGenresStr}");
                 sw.Close();
-                Console.WriteLine($"Added movie \"{newMovie.Title}\" under id \"{newMovie.Id}\" with {newMovie.Genres.Length} genre identifier(s) (having none is included as a an identifier of being empty).");
+                Console.WriteLine($"Added movie \"{newMovie.Title}\" under id \"{newMovie.Id}\" with {newMovie.Genres.Length} genre identifier{(newMovie.Genres.Length>1? "s": "")}{(newMovie.Genres[0]==Movie.GENRES.NO_GENRES_LISTED? " (having none is included as a an identifier of being empty)" : "")}.");
             }
         }
         catch (FileNotFoundException ex)
@@ -473,6 +492,50 @@ void presentListRange(List<Movie> moviesList)
             }
         }
     }
+}
+
+
+List<Movie.GENRES> repeatingGenreOptionsSelector(bool exclusivity, bool includeErrorEnum){
+    string[] remainingGenresAsStrings = new string[ALL_MOVIE_GENRES.Length + (includeErrorEnum? 1 : 0)]; // -1 to remove error enum but then +1 for the exit option
+
+    List<Movie.GENRES> selectedGenres = new List<Movie.GENRES>(){};
+    
+    string genreSelectedStr = "";
+
+    // Build remainingGenresAsStrings
+    for (int i = 0; i < ALL_MOVIE_GENRES.Length; i++)
+    {
+        remainingGenresAsStrings[i] = Movie.GenresEnumToString(ALL_MOVIE_GENRES[i]);
+    }
+    remainingGenresAsStrings[remainingGenresAsStrings.Length - 1] = "Done entering genres";
+
+    do{
+        genreSelectedStr = optionsSelector(remainingGenresAsStrings);
+        for (int i = 0; i < remainingGenresAsStrings.Length; i++)
+        {
+            if (genreSelectedStr == remainingGenresAsStrings[i])
+            {
+                if (genreSelectedStr == remainingGenresAsStrings[remainingGenresAsStrings.Length - 1])
+                { //Last item was added just above as not an enum, but to exit
+                    genreSelectedStr = null; //Inform that do-while is over
+                }
+                else if ( exclusivity && genreSelectedStr == Movie.GenresEnumToString(Movie.GENRES.NO_GENRES_LISTED))
+                { //Exit early that none are listed
+                    selectedGenres.Add(Movie.GENRES.NO_GENRES_LISTED);//Should be the only element
+                    genreSelectedStr = null; //Inform that do-while is over
+                }
+                else
+                {
+                    selectedGenres.Add(Movie.GetEnumFromString(genreSelectedStr));
+                }
+                remainingGenresAsStrings[i] = null; //Blank options are removed from options selector
+                i = remainingGenresAsStrings.Length;
+            }
+        }
+        remainingGenresAsStrings[remainingGenresAsStrings.Length - 2] = null; //Remove no genres listed on the first round
+    } while (genreSelectedStr != null); //Last index is done option
+
+    return selectedGenres;
 }
 
 List<Movie> buildMoviesListFromFile(string dataPath)
