@@ -44,7 +44,7 @@ string optionsSelector(string[] options)
     string userInput;
     int selectedNumber;
     bool userInputWasImproper = true;
-    List<int> cleanedListIndexs = new List<int> { };
+    List<int> cleanedListIndexs = new List<int> {};
     string optionsTextAsStr = ""; //So only created once. Requires change if adjustable width is added
 
     for (int i = 0; i < options.Length; i++)
@@ -232,7 +232,7 @@ while (true)
             }
             //Sort by title and then by year as filtered by title
             filteredMovies.Sort((movie1, movie2) => movie1.CompareToTitle(movie2, true));
-        }else if (option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Genre)){
+        }else if(option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Genre)){
             Movie.GENRES[] filterByGenres = repeatingGenreOptionsSelector(false, true).ToArray();
             // TODO: Start more thread and parallise searching?
             for (int i = 0; i < filteredMovies.Count; ){
@@ -371,7 +371,8 @@ while (true)
         string newMovieGenresStr = "";
 
 
-        Movie.GENRES[] selectedGenres = repeatingGenreOptionsSelector(true, false).ToArray();
+        Movie.GENRES[] selectedGenres = Movie.SortGenres(repeatingGenreOptionsSelector(true, false));
+        
         foreach(Movie.GENRES genre in selectedGenres){
             newMovieGenresStr = $"{newMovieGenresStr}{DELIMETER_2}{Movie.GenresEnumToString(genre)}";
         }

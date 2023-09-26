@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Diagnostics;
+
 public class Movie : IEquatable<Movie>, IComparable<Movie>
 {
     public enum GENRES
@@ -71,6 +73,8 @@ public class Movie : IEquatable<Movie>, IComparable<Movie>
         {
             this.Genres[i] = GetEnumFromString(genres[i]);
         }
+        // Sort
+        this.Genres = SortGenres(this.Genres.ToList());
 
     }
     public Movie(int id, string title, string genreStringList, string genreStringDelimiter)
@@ -100,6 +104,7 @@ public class Movie : IEquatable<Movie>, IComparable<Movie>
     public int CompareTo(Movie compareMovie){
         return CompareToYear(compareMovie, true);
     }
+
 
     // Secondary comparer for Movie (year decending)
     public int CompareToYear(Movie compareMovie, bool sortTitleSecondLayer = false){ //If sortYearSecondLayer, then filter by title (decending) if they have the same year
@@ -137,6 +142,19 @@ public class Movie : IEquatable<Movie>, IComparable<Movie>
                 return compared;
             }
         }
+    }
+
+    public static GENRES[] SortGenres(List<GENRES> toSortGenres){
+        List<string> toSortAsStrings = new List<string>(){};
+        GENRES[] convertedBackToENUM = new GENRES[toSortGenres.Count()];
+        foreach(GENRES genre in toSortGenres){
+            toSortAsStrings.Add(GenresEnumToString(genre));
+        }
+        toSortAsStrings.Sort();
+        for(int i=0; i<convertedBackToENUM.Length; i++){
+            convertedBackToENUM[i] = GetEnumFromString(toSortAsStrings[i]);
+        }
+        return convertedBackToENUM;
     }
 
     public static GENRES GetEnumFromString(string genreStr)
