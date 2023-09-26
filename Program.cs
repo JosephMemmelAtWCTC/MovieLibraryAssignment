@@ -233,6 +233,8 @@ while (true)
             //Sort by title and then by year as filtered by title
             filteredMovies.Sort((movie1, movie2) => movie1.CompareToTitle(movie2, true));
         }else if(option == enumToStringFilterMenuWorkArround(FILTER_MENU_OPTIONS.Genre)){
+            Console.Write("Please enter the genres you would like to search for (adding more genres refines the search): ");
+
             Movie.GENRES[] filterByGenres = repeatingGenreOptionsSelector(false, true).ToArray();
             // TODO: Start more thread and parallise searching?
             for (int i = 0; i < filteredMovies.Count; ){
@@ -252,13 +254,6 @@ while (true)
                 }
             }
         }
-
-        // string[] remainingGenresAsStrings = new string[allMovieGenres.Length]; // -1 to remove error enum but then +1 for the exit option
-        // for(int i = 0; i < remainingGenresAsStrings.Length; i++){
-        //     remainingGenresAsStrings[i] = Movie.GenresEnumToString(allMovieGenres[i]);
-        // }
-        // remainingGenresAsStrings[remainingGenresAsStrings.Length-1] = "Done entering genres";
-        // optionsSelector()
 
         if(presentRange){
             presentListRange(filteredMovies);
@@ -453,7 +448,6 @@ void presentListRange(List<Movie> moviesList)
 {
     string[] options = new string[moviesList.Count / PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT + (moviesList.Count % PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT - 1 > 0 ? 1 : 0) + 1];// +1 is for exit
     int[,] optionsRanges = new int[options.Length - 1, 2]; //-2 for no range at options[0], 2 is for range start and range end.  //TODO: Combine arrays so that they aren't needed to be in sync? It's verry temporary and there would be more processing to create and then need to pull out and cast or create new class, ect.
-    // TODO: AUTO FOR LESS THAN PRINTOUT_RESULTS_MAX_TERMINAL_SPACE_HEIGHT
     options[0] = "Exit without printing report.";
     int recordsRangeStart;
     int recordsRangeEnd;
@@ -530,10 +524,12 @@ List<Movie.GENRES> repeatingGenreOptionsSelector(bool exclusivity, bool includeE
                     selectedGenres.Add(Movie.GetEnumFromString(genreSelectedStr));
                 }
                 remainingGenresAsStrings[i] = null; //Blank options are removed from options selector
-                i = remainingGenresAsStrings.Length;
+                break;
             }
         }
-        remainingGenresAsStrings[remainingGenresAsStrings.Length - 2] = null; //Remove no genres listed on the first round
+        if(!exclusivity){
+            remainingGenresAsStrings[remainingGenresAsStrings.Length - 2] = null; //Remove no genres listed on the first round if exclusive
+        }
     } while (genreSelectedStr != null); //Last index is done option
 
     return selectedGenres;

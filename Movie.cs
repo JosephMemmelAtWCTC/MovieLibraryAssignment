@@ -47,7 +47,7 @@ public class Movie : IEquatable<Movie>, IComparable<Movie>
         //If title follows specifc format "______(####)", seperate out year
         short lastOpeningParenthesieTitleIndex = (short)title.LastIndexOf("(");
         short lastClosingParenthesieTitleIndex = (short)title.LastIndexOf(")");
-        // TODO: Decide to throw error if date is not included, it is not a field and decided as optional, not throwing/logging error for now
+        // TODO: Decide to throw error if date is not included, it is not a field and decided as optional, not throwing/logging error for now as movies.csv includes quite a lot that do not include the year
         if (lastClosingParenthesieTitleIndex == title.Length - 1 //Closing parenthesies must be at the end of string, also checks for Last is ")...(" instead of "(...)", determine not including a title
            && lastClosingParenthesieTitleIndex - lastOpeningParenthesieTitleIndex - 2 > 1 && lastClosingParenthesieTitleIndex - lastOpeningParenthesieTitleIndex - 2 <= YEAR_SPACE_FOR_DIGIT_PLACES //Number of charaters taking up must be at least 1, max YEAR_SPACE_FOR_DIGIT_PLACES, else determine does not include a title
            && short.TryParse(title.Substring(lastOpeningParenthesieTitleIndex + 1, lastClosingParenthesieTitleIndex - lastOpeningParenthesieTitleIndex - 1), out short year)
